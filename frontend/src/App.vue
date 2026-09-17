@@ -3,8 +3,7 @@
     <!-- top navigation bar -->
     <v-app-bar color="surface" elevation="2">
       <v-app-bar-title>
-        <span class="text-primary font-weight-bold">FloodLens</span>
-        <span class="text-medium-emphasis text-body-2 ml-2">Stormwater Monitoring System</span>
+        <span class="text-primary font-weight-bold">Stormwater Monitoring System</span>
       </v-app-bar-title>
 
       <!-- live connection status indicator -->
