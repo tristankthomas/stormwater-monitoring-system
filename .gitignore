@@ -1,4 +1,4 @@
-# Logs
+# logs
 logs
 *.log
 npm-debug.log*
@@ -7,33 +7,39 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# node
 node_modules
-.DS_Store
 dist
 dist-ssr
 coverage
 *.local
+*.tsbuildinfo
+*.timestamp-*-*.mjs
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+# python
+*/venv/
+*/__pycache__/
+*.pyc
+*.pyo
+
+# database
+*.db
+
+# os
+.DS_Store
+
+# editor
+**/.vscode/*
+!**/.vscode/extensions.json
 .idea
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-
-*.tsbuildinfo
-
 .eslintcache
 
-# Cypress
+# testing
 /cypress/videos/
 /cypress/screenshots/
-
-# Vitest
 __screenshots__/
-
-# Vite
-*.timestamp-*-*.mjs
