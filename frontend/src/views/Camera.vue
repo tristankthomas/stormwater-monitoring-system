@@ -23,32 +23,54 @@
       <v-col cols="12" md="4">
         <v-card color="surface" rounded="lg" height="100%">
           <v-card-title class="pa-4 text-body-1 font-weight-bold">
-            <v-icon class="mr-2" color="primary">mdi-eye</v-icon>
-            Visual Analysis
+            <v-icon class="mr-2" color="primary">mdi-eye-check</v-icon>
+            Detection Results
           </v-card-title>
           <v-divider />
           <v-card-text>
-            <v-list bg-color="transparent">
+
+            <!-- turbidity result from opencv brightness analysis -->
+            <div class="mb-4">
+              <div class="text-medium-emphasis text-caption mb-1">Turbidity (Visual)</div>
+              <div class="d-flex align-center justify-space-between">
+                <span class="text-medium-emphasis text-body-2">OpenCV brightness score</span>
+                <v-chip size="small" color="grey" variant="tonal">Awaiting feed</v-chip>
+              </div>
+            </div>
+
+            <v-divider class="mb-4" />
+
+            <!-- debris detection result from contour analysis -->
+            <div class="mb-4">
+              <div class="text-medium-emphasis text-caption mb-1">Debris Detection</div>
+              <div class="d-flex align-center justify-space-between">
+                <span class="text-medium-emphasis text-body-2">Floating solids detected</span>
+                <v-chip size="small" color="grey" variant="tonal">Awaiting feed</v-chip>
+              </div>
+            </div>
+
+            <v-divider class="mb-4" />
+
+            <div class="text-caption text-medium-emphasis mb-1">Detection method</div>
+            <v-list bg-color="transparent" density="compact">
               <v-list-item
                 prepend-icon="mdi-water-opacity"
-                title="Turbidity Detection"
-                subtitle="OpenCV thresholding on water sample"
+                title="Turbidity"
+                subtitle="Average pixel brightness thresholding"
+                density="compact"
               />
               <v-list-item
                 prepend-icon="mdi-trash-can-outline"
-                title="Debris Detection"
-                subtitle="Visible floating solids and litter"
-              />
-              <v-list-item
-                prepend-icon="mdi-oil"
-                title="Surface Sheen"
-                subtitle="Hydrocarbon film detection"
+                title="Debris"
+                subtitle="Contour detection on water surface"
+                density="compact"
               />
             </v-list>
 
             <v-alert type="info" variant="tonal" class="mt-4" density="compact">
               Camera analysis requires Raspberry Pi with CSI camera module attached.
             </v-alert>
+
           </v-card-text>
         </v-card>
       </v-col>
