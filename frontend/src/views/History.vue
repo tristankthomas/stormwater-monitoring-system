@@ -25,9 +25,20 @@
     <v-row>
       <v-col cols="12">
         <v-card color="surface" rounded="lg">
-          <v-card-title class="pa-4 text-body-1 font-weight-bold">
-            <v-icon class="mr-2" color="error">mdi-alert-circle</v-icon>
-            Event Log
+          <v-card-title class="pa-4 text-body-1 font-weight-bold d-flex align-center justify-space-between">
+            <div>
+              <v-icon class="mr-2" color="error">mdi-alert-circle</v-icon>
+              Event Log
+            </div>
+            <v-btn
+              color="error"
+              variant="tonal"
+              size="small"
+              prepend-icon="mdi-delete"
+              @click="clearDatabase"
+            >
+              Clear Database
+            </v-btn>
           </v-card-title>
           <v-divider />
 
@@ -131,7 +142,7 @@ export default {
   mounted() {
     this.fetchData()
     // refresh history every 10 seconds
-    this.interval = setInterval(this.fetchData, 10000)
+    this.interval = setInterval(this.fetchData, 3000)
   },
 
   beforeUnmount() {
@@ -154,6 +165,17 @@ export default {
 
     formatTimestamp(ts) {
       return new Date(ts * 1000).toLocaleString()
+    },
+
+    async clearDatabase() {
+      // wipe all data and refresh the view
+      try {
+        await axios.delete('http://localhost:8000/api/clear')
+        this.readings = []
+        this.events = []
+      } catch (e) {
+        console.error('failed to clear database', e)
+      }
     }
   }
 }

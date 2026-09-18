@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from database import get_recent_readings
+from database import get_recent_readings, clear_db
 from simulator import simulator, compute_pollution_score, TURBIDITY_THRESHOLD, CONDUCTIVITY_THRESHOLD
 
 router = APIRouter(prefix="/api")
@@ -23,3 +23,10 @@ def get_status():
         "pollution_score": compute_pollution_score(turbidity, conductivity),
         "rain_event": simulator.rain_event
     }
+
+
+@router.delete("/clear")
+def clear_all():
+    # wipe all readings and events from the database — used to reset before a demo
+    clear_db()
+    return {"message": "database cleared"}

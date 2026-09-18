@@ -89,3 +89,13 @@ def get_recent_events(limit: int = 20) -> list[dict]:
     rows = c.fetchall()
     conn.close()
     return [{"timestamp": r[0], "event_type": r[1], "message": r[2]} for r in rows]
+
+
+def clear_db():
+    # delete all readings and events — called before a demo to start fresh
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("DELETE FROM readings")
+    c.execute("DELETE FROM events")
+    conn.commit()
+    conn.close()
