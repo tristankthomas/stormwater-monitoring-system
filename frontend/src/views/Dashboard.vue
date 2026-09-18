@@ -80,7 +80,7 @@
             />
             <div class="d-flex justify-space-between text-caption text-medium-emphasis mt-1">
               <span>0</span>
-              <span>Threshold: {{ TURBIDITY_THRESHOLD }} NTU</span>
+              <span>Threshold: {{ thresholds.turbidity }} NTU</span>
               <span>150</span>
             </div>
           </v-card-text>
@@ -105,7 +105,7 @@
             />
             <div class="d-flex justify-space-between text-caption text-medium-emphasis mt-1">
               <span>0</span>
-              <span>Threshold: {{ CONDUCTIVITY_THRESHOLD }} ppm</span>
+              <span>Threshold: {{ thresholds.conductivity }} ppm</span>
               <span>2000</span>
             </div>
           </v-card-text>
@@ -122,16 +122,14 @@
 </template>
 
 <script>
-const TURBIDITY_THRESHOLD = 50
-const CONDUCTIVITY_THRESHOLD = 800
+import axios from 'axios'
 
 export default {
   name: 'Dashboard',
 
   data() {
     return {
-      TURBIDITY_THRESHOLD,
-      CONDUCTIVITY_THRESHOLD,
+      thresholds: { turbidity: 50, conductivity: 800 },
       data: {},
       lastUpdated: '—',
       ws: null,
@@ -151,15 +149,15 @@ export default {
 
     turbidityColor() {
       if (!this.data.turbidity) return 'grey'
-      if (this.data.turbidity > TURBIDITY_THRESHOLD) return '#EF5350'
-      if (this.data.turbidity > TURBIDITY_THRESHOLD * 0.7) return '#FFA726'
+      if (this.data.turbidity > this.thresholds.turbidity) return '#EF5350'
+      if (this.data.turbidity > this.thresholds.turbidity * 0.7) return '#FFA726'
       return '#66BB6A'
     },
 
     conductivityColor() {
       if (!this.data.conductivity) return 'grey'
-      if (this.data.conductivity > CONDUCTIVITY_THRESHOLD) return '#EF5350'
-      if (this.data.conductivity > CONDUCTIVITY_THRESHOLD * 0.7) return '#FFA726'
+      if (this.data.conductivity > this.thresholds.conductivity) return '#EF5350'
+      if (this.data.conductivity > this.thresholds.conductivity * 0.7) return '#FFA726'
       return '#66BB6A'
     },
 
@@ -170,6 +168,7 @@ export default {
   },
 
   mounted() {
+    this.fetchThresholds()
     this.fetchInitialStatus()
     this.connectWebSocket()
   },
@@ -180,6 +179,16 @@ export default {
   },
 
   methods: {
+    async fetchThresholds() {
+      // load current thresholds from backend so dashboard reflects any settings changes
+      try {
+        const res = await axios.get('http://localhost:8000/api/thresholds')
+        this.thresholds = res.data
+      } catch (e) {
+        console.error('failed to fetch thresholds', e)
+      }
+    },
+
     async fetchInitialStatus() {
       // fetch current sensor state on page load before websocket connects
       try {

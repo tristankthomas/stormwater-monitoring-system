@@ -1,13 +1,15 @@
 import random
 
-# pollution thresholds based on water quality standards
-TURBIDITY_THRESHOLD = 50.0      # NTU - above this triggers diverter
-CONDUCTIVITY_THRESHOLD = 800.0  # ppm - elevated conductivity indicates contamination
+# shared mutable thresholds — updated at runtime via the settings endpoint
+thresholds = {
+    "turbidity": 50.0,      # NTU - above this triggers diverter
+    "conductivity": 800.0   # ppm - elevated conductivity indicates contamination
+}
 
 
 def compute_pollution_score(turbidity: float, conductivity: float) -> str:
     # turbidity weighted higher as the primary visual indicator
-    score = (turbidity / TURBIDITY_THRESHOLD) * 0.6 + (conductivity / CONDUCTIVITY_THRESHOLD) * 0.4
+    score = (turbidity / thresholds["turbidity"]) * 0.6 + (conductivity / thresholds["conductivity"]) * 0.4
     if score < 0.5:
         return "low"
     elif score < 1.0:

@@ -1,8 +1,9 @@
 import asyncio
 import json
+import time
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from database import insert_reading, insert_event
-from simulator import simulator, compute_pollution_score, TURBIDITY_THRESHOLD, CONDUCTIVITY_THRESHOLD
+from simulator import simulator, compute_pollution_score, thresholds
 
 router = APIRouter()
 
@@ -36,7 +37,10 @@ async def sensor_loop():
     # runs continuously in background, reading sensors and broadcasting every 2 seconds
     while True:
         turbidity, conductivity = simulator.read()
-        diverter_active = turbidity > TURBIDITY_THRESHOLD or conductivity > CONDUCTIVITY_THRESHOLD
+        diverter_active = (
+            turbidity > thresholds["turbidity"] or
+            conductivity > thresholds["conductivity"]
+        )
 
         insert_reading(turbidity, conductivity, diverter_active)
 
@@ -50,7 +54,7 @@ async def sensor_loop():
             "diverter_active": diverter_active,
             "pollution_score": compute_pollution_score(turbidity, conductivity),
             "rain_event": simulator.rain_event,
-            "timestamp": __import__("time").time()
+            "timestamp": int(time.time())
         }
 
         await manager.broadcast(payload)

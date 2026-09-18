@@ -52,6 +52,7 @@ export default {
         { to: '/',         icon: 'mdi-view-dashboard', title: 'Dashboard' },
         { to: '/history',  icon: 'mdi-chart-line',     title: 'History' },
         { to: '/camera',   icon: 'mdi-camera',          title: 'Camera' },
+        { to: '/settings', icon: 'mdi-tune', title: 'Settings' }
       ]
     }
   },

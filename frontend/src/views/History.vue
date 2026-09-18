@@ -81,6 +81,7 @@ export default {
     return {
       events: [],
       readings: [],
+      thresholds: { turbidity: 50, conductivity: 800 },
     }
   },
 
@@ -117,16 +118,16 @@ export default {
         yaxis: {
           labels: { style: { colors: '#9e9e9e' } }
         },
-        // threshold reference lines
+        // threshold reference lines pulled from backend settings
         annotations: {
           yaxis: [
             {
-              y: 50,
+              y: this.thresholds.turbidity,
               borderColor: '#EF5350',
               label: { text: 'Turbidity Threshold', style: { color: '#EF5350', background: 'transparent' } }
             },
             {
-              y: 800,
+              y: this.thresholds.conductivity,
               borderColor: '#FFA726',
               label: { text: 'Conductivity Threshold', style: { color: '#FFA726', background: 'transparent' } }
             }
@@ -141,7 +142,7 @@ export default {
 
   mounted() {
     this.fetchData()
-    // refresh history every 10 seconds
+    // refresh history and thresholds every 3 seconds
     this.interval = setInterval(this.fetchData, 3000)
   },
 
@@ -152,12 +153,14 @@ export default {
   methods: {
     async fetchData() {
       try {
-        const [readingsRes, eventsRes] = await Promise.all([
+        const [readingsRes, eventsRes, thresholdsRes] = await Promise.all([
           axios.get('http://localhost:8000/api/readings?limit=100'),
-          axios.get('http://localhost:8000/api/events')
+          axios.get('http://localhost:8000/api/events'),
+          axios.get('http://localhost:8000/api/thresholds')
         ])
         this.readings = readingsRes.data
         this.events = eventsRes.data
+        this.thresholds = thresholdsRes.data
       } catch (e) {
         console.error('failed to fetch history data', e)
       }
