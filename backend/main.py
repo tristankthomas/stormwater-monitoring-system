@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import asyncio
+import os
 
 from database import init_db
 from camera import camera
@@ -27,6 +29,10 @@ app.include_router(websocket_router)
 app.include_router(camera_router)
 
 init_db()
+
+# serve built vue frontend if dist/ exists — only present after npm run build + deploy
+if os.path.exists("../frontend/dist"):
+    app.mount("/", StaticFiles(directory="../frontend/dist", html=True), name="static")
 
 
 @app.on_event("startup")
