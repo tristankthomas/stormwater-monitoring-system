@@ -3,9 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 
 from database import init_db
+from camera import camera
 from routes.sensors import router as sensors_router
 from routes.events import router as events_router
 from routes.websocket import router as websocket_router, sensor_loop
+from routes.camera_route import router as camera_router
 
 app = FastAPI(title="Stormwater Monitoring System")
 
@@ -22,11 +24,13 @@ app.add_middleware(
 app.include_router(sensors_router)
 app.include_router(events_router)
 app.include_router(websocket_router)
+app.include_router(camera_router)
 
 init_db()
 
 
 @app.on_event("startup")
 async def startup():
-    # start the sensor loop as a background task on server startup
+    # start camera capture loop and sensor loop as background tasks
+    camera.start()
     asyncio.create_task(sensor_loop())
