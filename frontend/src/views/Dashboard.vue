@@ -124,6 +124,9 @@
 <script>
 import axios from 'axios'
 
+// use relative paths so this works whether served from localhost or the pi's ip
+const API_BASE = ''
+
 export default {
   name: 'Dashboard',
 
@@ -133,17 +136,16 @@ export default {
       data: {},
       lastUpdated: '—',
       ws: null,
+      thresholdInterval: null,
     }
   },
 
   computed: {
     turbidityPercent() {
-      // cap bar at 150 NTU for display purposes
       return Math.min((this.data.turbidity / 150) * 100, 100)
     },
 
     conductivityPercent() {
-      // cap bar at 2000 ppm for display purposes
       return Math.min((this.data.conductivity / 2000) * 100, 100)
     },
 
@@ -171,18 +173,18 @@ export default {
     this.fetchThresholds()
     this.fetchInitialStatus()
     this.connectWebSocket()
+    this.thresholdInterval = setInterval(this.fetchThresholds, 5000)
   },
 
   beforeUnmount() {
-    // clean up websocket when leaving the view
     if (this.ws) this.ws.close()
+    clearInterval(this.thresholdInterval)
   },
 
   methods: {
     async fetchThresholds() {
-      // load current thresholds from backend so dashboard reflects any settings changes
       try {
-        const res = await axios.get('http://localhost:8000/api/thresholds')
+        const res = await axios.get(`${API_BASE}/api/thresholds`)
         this.thresholds = res.data
       } catch (e) {
         console.error('failed to fetch thresholds', e)
@@ -190,9 +192,8 @@ export default {
     },
 
     async fetchInitialStatus() {
-      // fetch current sensor state on page load before websocket connects
       try {
-        const res = await fetch('http://localhost:8000/api/status')
+        const res = await fetch(`${API_BASE}/api/status`)
         this.data = await res.json()
         this.updateTimestamp()
       } catch (e) {
@@ -201,16 +202,17 @@ export default {
     },
 
     connectWebSocket() {
-      this.ws = new WebSocket('ws://localhost:8000/ws/live')
+      // build ws url relative to whatever host is serving the page
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const wsUrl = `${protocol}//${window.location.host}/ws/live`
+      this.ws = new WebSocket(wsUrl)
 
       this.ws.onmessage = (event) => {
-        // update reactive data on each incoming reading
         this.data = JSON.parse(event.data)
         this.updateTimestamp()
       }
 
       this.ws.onclose = () => {
-        // reconnect after 3 seconds if connection drops
         setTimeout(() => this.connectWebSocket(), 3000)
       }
     },

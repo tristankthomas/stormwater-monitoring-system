@@ -4,18 +4,33 @@
     <v-row>
       <v-col cols="12" md="8">
         <v-card color="surface" rounded="lg">
-          <v-card-title class="pa-4 text-body-1 font-weight-bold">
-            <v-icon class="mr-2" color="primary">mdi-camera</v-icon>
-            Live Camera Feed
+          <v-card-title class="pa-4 text-body-1 font-weight-bold d-flex align-center justify-space-between">
+            <div>
+              <v-icon class="mr-2" color="primary">mdi-camera</v-icon>
+              Live Camera Feed
+            </div>
+            <!-- fullscreen toggle for the camera feed -->
+            <v-btn
+              v-if="analysis.available"
+              icon="mdi-fullscreen"
+              variant="text"
+              size="small"
+              @click="toggleFullscreen"
+            />
           </v-card-title>
           <v-divider />
-          <v-card-text class="d-flex align-center justify-center" style="height: 400px; padding: 0;">
+          <v-card-text
+            ref="feedContainer"
+            class="d-flex align-center justify-center"
+            style="height: 600px; padding: 0; background: black; position: relative;"
+          >
 
             <!-- live mjpeg stream when camera is available -->
             <img
               v-if="analysis.available"
+              ref="feedImage"
               :src="streamUrl"
-              style="width: 100%; height: 400px; object-fit: cover;"
+              style="width: 100%; height: 100%; object-fit: contain;"
               alt="Live camera feed"
             />
 
@@ -39,7 +54,6 @@
           <v-divider />
           <v-card-text>
 
-            <!-- turbidity classification from opencv brightness analysis -->
             <div class="mb-4">
               <div class="text-medium-emphasis text-caption mb-1">Turbidity (Visual)</div>
               <div class="d-flex align-center justify-space-between">
@@ -58,7 +72,6 @@
 
             <v-divider class="mb-4" />
 
-            <!-- debris count from contour detection -->
             <div class="mb-4">
               <div class="text-medium-emphasis text-caption mb-1">Debris Detection</div>
               <div class="d-flex align-center justify-space-between">
@@ -112,7 +125,8 @@
 <script>
 import axios from 'axios'
 
-const API_BASE = 'http://localhost:8000'
+// use relative paths so this works whether served from localhost or the pi's ip
+const API_BASE = ''
 
 export default {
   name: 'Camera',
@@ -139,7 +153,6 @@ export default {
 
   mounted() {
     this.fetchAnalysis()
-    // poll analysis results every 2 seconds to stay in sync with camera loop
     this.interval = setInterval(this.fetchAnalysis, 2000)
   },
 
@@ -154,6 +167,16 @@ export default {
         this.analysis = res.data
       } catch (e) {
         console.error('failed to fetch camera analysis', e)
+      }
+    },
+
+    toggleFullscreen() {
+      // request fullscreen on the feed container so the video fills the screen
+      const el = this.$refs.feedContainer.$el ?? this.$refs.feedContainer
+      if (!document.fullscreenElement) {
+        el.requestFullscreen?.()
+      } else {
+        document.exitFullscreen?.()
       }
     }
   }

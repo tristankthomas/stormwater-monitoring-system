@@ -10,7 +10,6 @@
           </v-card-title>
           <v-divider />
           <v-card-text>
-            <!-- apexcharts time series for turbidity and conductivity -->
             <apexchart
               type="line"
               height="300"
@@ -42,7 +41,6 @@
           </v-card-title>
           <v-divider />
 
-          <!-- empty state when no events have been logged yet -->
           <v-card-text v-if="events.length === 0" class="text-center text-medium-emphasis py-8">
             No threshold breach events recorded yet.
           </v-card-text>
@@ -73,6 +71,9 @@
 import VueApexCharts from 'vue3-apexcharts'
 import axios from 'axios'
 
+// use relative paths so this works whether served from localhost or the pi's ip
+const API_BASE = ''
+
 export default {
   name: 'History',
   components: { apexchart: VueApexCharts },
@@ -87,7 +88,6 @@ export default {
 
   computed: {
     chartSeries() {
-      // reverse so chart shows oldest to newest left to right
       const reversed = [...this.readings].reverse()
       return [
         {
@@ -118,7 +118,6 @@ export default {
         yaxis: {
           labels: { style: { colors: '#9e9e9e' } }
         },
-        // threshold reference lines pulled from backend settings
         annotations: {
           yaxis: [
             {
@@ -142,7 +141,6 @@ export default {
 
   mounted() {
     this.fetchData()
-    // refresh history and thresholds every 3 seconds
     this.interval = setInterval(this.fetchData, 3000)
   },
 
@@ -154,9 +152,9 @@ export default {
     async fetchData() {
       try {
         const [readingsRes, eventsRes, thresholdsRes] = await Promise.all([
-          axios.get('http://localhost:8000/api/readings?limit=100'),
-          axios.get('http://localhost:8000/api/events'),
-          axios.get('http://localhost:8000/api/thresholds')
+          axios.get(`${API_BASE}/api/readings?limit=100`),
+          axios.get(`${API_BASE}/api/events`),
+          axios.get(`${API_BASE}/api/thresholds`)
         ])
         this.readings = readingsRes.data
         this.events = eventsRes.data
@@ -171,9 +169,8 @@ export default {
     },
 
     async clearDatabase() {
-      // wipe all data and refresh the view
       try {
-        await axios.delete('http://localhost:8000/api/clear')
+        await axios.delete(`${API_BASE}/api/clear`)
         this.readings = []
         this.events = []
       } catch (e) {

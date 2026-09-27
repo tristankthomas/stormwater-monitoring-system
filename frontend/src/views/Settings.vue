@@ -16,7 +16,6 @@
                 <span class="text-body-2">Turbidity Threshold</span>
                 <span class="text-primary font-weight-bold">{{ localTurbidity }} NTU</span>
               </div>
-              <!-- slider for adjusting turbidity threshold -->
               <v-slider
                 v-model="localTurbidity"
                 :min="5"
@@ -38,7 +37,6 @@
                 <span class="text-body-2">Conductivity Threshold</span>
                 <span class="text-primary font-weight-bold">{{ localConductivity }} ppm</span>
               </div>
-              <!-- slider for adjusting conductivity threshold -->
               <v-slider
                 v-model="localConductivity"
                 :min="100"
@@ -66,7 +64,6 @@
             <div class="d-flex gap-3">
               <v-btn
                 color="primary"
-                flex="1"
                 class="flex-grow-1"
                 :loading="saving"
                 @click="saveThresholds"
@@ -94,6 +91,9 @@
 <script>
 import axios from 'axios'
 
+// use relative paths so this works whether served from localhost or the pi's ip
+const API_BASE = ''
+
 export default {
   name: 'Settings',
 
@@ -114,9 +114,8 @@ export default {
 
   methods: {
     async fetchThresholds() {
-      // load current thresholds from backend on page load
       try {
-        const res = await axios.get('http://localhost:8000/api/thresholds')
+        const res = await axios.get(`${API_BASE}/api/thresholds`)
         this.localTurbidity = res.data.turbidity
         this.localConductivity = res.data.conductivity
       } catch (e) {
@@ -129,7 +128,7 @@ export default {
       this.saved = false
       try {
         await axios.post(
-          `http://localhost:8000/api/thresholds?turbidity=${this.localTurbidity}&conductivity=${this.localConductivity}`
+          `${API_BASE}/api/thresholds?turbidity=${this.localTurbidity}&conductivity=${this.localConductivity}`
         )
         this.savedMessage = 'Thresholds updated successfully.'
         this.saved = true
@@ -142,11 +141,10 @@ export default {
     },
 
     async resetThresholds() {
-      // reset to defaults and update sliders to reflect new values
       this.resetting = true
       this.saved = false
       try {
-        const res = await axios.post('http://localhost:8000/api/thresholds/reset')
+        const res = await axios.post(`${API_BASE}/api/thresholds/reset`)
         this.localTurbidity = res.data.turbidity
         this.localConductivity = res.data.conductivity
         this.savedMessage = 'Thresholds reset to default values.'

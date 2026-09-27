@@ -52,7 +52,7 @@ export default {
         { to: '/',         icon: 'mdi-view-dashboard', title: 'Dashboard' },
         { to: '/history',  icon: 'mdi-chart-line',     title: 'History' },
         { to: '/camera',   icon: 'mdi-camera',          title: 'Camera' },
-        { to: '/settings', icon: 'mdi-tune', title: 'Settings' }
+        { to: '/settings', icon: 'mdi-tune',            title: 'Settings' },
       ]
     }
   },
@@ -63,8 +63,11 @@ export default {
 
   methods: {
     connectWebSocket() {
-      // open websocket connection and track status for the indicator
-      this.ws = new WebSocket('ws://localhost:8000/ws/live')
+      // build ws url relative to whatever host is serving the page —
+      // works on localhost during dev and on the pi's ip/hostname in production
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const wsUrl = `${protocol}//${window.location.host}/ws/live`
+      this.ws = new WebSocket(wsUrl)
 
       this.ws.onopen = () => {
         this.connected = true
@@ -72,7 +75,6 @@ export default {
 
       this.ws.onclose = () => {
         this.connected = false
-        // attempt reconnect after 3 seconds
         setTimeout(() => this.connectWebSocket(), 3000)
       }
 
