@@ -36,7 +36,9 @@ manager = ConnectionManager()
 async def sensor_loop():
     # runs continuously in background, reading sensors and broadcasting every 2 seconds
     while True:
-        turbidity, conductivity = simulator.read()
+        # the real conductivity read blocks for ~0.25s, so run it in a thread
+        # to keep the event loop (websocket, camera stream) responsive
+        turbidity, conductivity = await asyncio.to_thread(simulator.read)
         diverter_active = (
             turbidity > thresholds["turbidity"] or
             conductivity > thresholds["conductivity"]
@@ -51,6 +53,7 @@ async def sensor_loop():
         payload = {
             "turbidity": turbidity,
             "conductivity": conductivity,
+            "conductivity_source": simulator.conductivity_source,  # "sensor" or "simulated"
             "diverter_active": diverter_active,
             "pollution_score": compute_pollution_score(turbidity, conductivity),
             "rain_event": simulator.rain_event,

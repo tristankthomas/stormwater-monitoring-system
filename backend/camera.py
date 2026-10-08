@@ -21,30 +21,40 @@ DEBRIS_MIN_AREA = 500
 class CameraProcessor:
     def __init__(self):
         self.frame = None           # latest raw frame as jpeg bytes
+        self.picam = None
+        self.camera_ready = False   # true only if a camera was found and started
         self.analysis = {
             "turbidity_class": "unknown",
             "debris_count": 0,
             "brightness": None,
-            "available": CAMERA_AVAILABLE
+            "available": False
         }
         self.lock = threading.Lock()
         self.running = False
 
         if CAMERA_AVAILABLE:
             self._init_camera()
+            self.analysis["available"] = self.camera_ready
 
     def _init_camera(self):
         # initialise picamera2 and configure for video capture
-        self.picam = Picamera2()
-        config = self.picam.create_video_configuration(
-            main={"size": (640, 480), "format": "RGB888"}
-        )
-        self.picam.configure(config)
-        self.picam.start()
-        time.sleep(1)  # allow camera to warm up before first capture
+        # if no camera is attached, carry on without one so the rest of the app still runs
+        try:
+            self.picam = Picamera2()
+            config = self.picam.create_video_configuration(
+                main={"size": (640, 480), "format": "RGB888"}
+            )
+            self.picam.configure(config)
+            self.picam.start()
+            time.sleep(1)  # allow camera to warm up before first capture
+            self.camera_ready = True
+        except Exception as e:
+            print(f"camera not available: {e}")
+            self.picam = None
+            self.camera_ready = False
 
     def start(self):
-        if not CAMERA_AVAILABLE:
+        if not self.camera_ready:
             return
         self.running = True
         # run capture loop in background thread so it doesn't block the api
@@ -112,7 +122,7 @@ class CameraProcessor:
 
     def stop(self):
         self.running = False
-        if CAMERA_AVAILABLE:
+        if self.picam is not None:
             self.picam.stop()
 
 

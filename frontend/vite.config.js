@@ -15,4 +15,12 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  // dev only: forward api and websocket requests to the fastapi backend so
+  // relative urls work the same way they do when fastapi serves the built app
+  server: {
+    proxy: {
+      '/api': 'http://localhost:8000',
+      '/ws': { target: 'ws://localhost:8000', ws: true },
+    },
+  },
 })

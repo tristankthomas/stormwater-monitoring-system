@@ -1,5 +1,7 @@
 import random
 
+from conductivity import conductivity_sensor
+
 # shared mutable thresholds — updated at runtime via the settings endpoint
 thresholds = {
     "turbidity": 50.0,      # NTU - above this triggers diverter
@@ -20,9 +22,11 @@ def compute_pollution_score(turbidity: float, conductivity: float) -> str:
 
 class SensorSimulator:
     # simulates realistic sensor behaviour including first-flush rain events
+    # conductivity comes from the real sensor when one is attached, otherwise it is simulated
     def __init__(self):
         self.rain_event = False
         self.rain_timer = 0
+        self.conductivity_source = "simulated"  # "sensor" or "simulated"
 
     def read(self) -> tuple[float, float]:
         # randomly trigger a rain event with low probability each cycle
@@ -41,6 +45,15 @@ class SensorSimulator:
             # baseline dry weather readings
             turbidity = random.uniform(5, 30)
             conductivity = random.uniform(200, 600)
+
+        # replace the simulated conductivity with the real reading when possible
+        self.conductivity_source = "simulated"
+        if conductivity_sensor.available:
+            try:
+                conductivity = conductivity_sensor.read_ppm()
+                self.conductivity_source = "sensor"
+            except Exception as e:
+                print(f"conductivity read failed, using simulated value: {e}")
 
         return round(turbidity, 2), round(conductivity, 2)
 
