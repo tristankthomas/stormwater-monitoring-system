@@ -9,15 +9,21 @@ thresholds = {
 }
 
 
-def compute_pollution_score(clarity: float, conductivity: float) -> str:
-    # conductivity weighted higher as the primary quantitative signal, camera clarity is the secondary visual check
-    score = (conductivity / thresholds["conductivity"]) * 0.6 + (clarity / thresholds["clarity"]) * 0.4
-    if score < 0.5:
-        return "low"
-    elif score < 1.0:
-        return "medium"
+def compute_pollution_score(clarity: float, conductivity: float) -> tuple[float, str]:
+    # each signal is scaled so 1.0 means "at its own threshold"
+    c = conductivity / thresholds["conductivity"]
+    k = clarity / thresholds["clarity"]
+    # the worse signal sets the level, the other adds half its weight:
+    #   either signal alone at its threshold         -> 1.0 (high)
+    #   both moderately elevated (e.g. 0.7 and 0.7)  -> 1.05 (high), combined evidence escalates
+    value = max(c, k) + 0.5 * min(c, k)
+    if value < 0.5:
+        level = "low"
+    elif value < 1.0:
+        level = "medium"
     else:
-        return "high"
+        level = "high"
+    return round(value, 2), level
 
 
 class SensorSimulator:

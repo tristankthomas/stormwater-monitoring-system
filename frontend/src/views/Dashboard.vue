@@ -1,49 +1,88 @@
 <template>
   <v-container fluid class="pa-6">
 
-    <!-- alert banner shown when diverter is active -->
-    <v-alert
-      v-if="data.diverter_active"
-      type="error"
-      prominent
-      class="mb-6"
-      icon="mdi-alert-circle"
-    >
-      <strong>Diverter Activated</strong> — pollution threshold exceeded. Stormwater is being diverted.
-    </v-alert>
-
-    <!-- top row: pollution score and diverter status -->
+    <!-- top row: combined pollution score and what it means for the diverter -->
     <v-row class="mb-4">
       <v-col cols="12" md="6">
-        <v-card color="surface" rounded="lg" height="120">
-          <v-card-text class="d-flex align-center h-100">
-            <div>
-              <div class="text-medium-emphasis text-body-2 mb-1">Pollution Score</div>
+        <v-card color="surface" rounded="lg" height="100%">
+          <v-card-text>
+            <div class="text-medium-emphasis text-body-2 mb-2">Pollution Score</div>
+            <div class="d-flex align-center mb-4">
               <v-chip
                 :color="scoreColor"
+                variant="flat"
                 size="x-large"
-                class="text-h6 font-weight-bold"
+                class="text-h6 font-weight-bold mr-4"
               >
                 {{ data.pollution_score?.toUpperCase() ?? '—' }}
               </v-chip>
+              <div>
+                <div class="font-weight-bold" :style="{ fontSize: '2rem', lineHeight: 1.1 }">{{ fmt(data.pollution_value) }}</div>
+                <div class="text-caption text-medium-emphasis">diverter triggers at 1.0 or above</div>
+              </div>
             </div>
+            <!-- zoned bar: green below 0.5, amber 0.5 to 1.0, red from 1.0, marker shows the current score -->
+            <div class="position-relative" style="height: 12px; border-radius: 6px; overflow: hidden; display: flex;">
+              <div style="width: 25%; background: #66BB6A; opacity: 0.6;"></div>
+              <div style="width: 25%; background: #FFA726; opacity: 0.6;"></div>
+              <div style="width: 50%; background: #EF5350; opacity: 0.6;"></div>
+            </div>
+            <div
+              class="position-relative"
+              style="height: 0;"
+            >
+              <div
+                :style="{
+                  position: 'absolute', top: '-16px', width: '4px', height: '20px',
+                  borderRadius: '2px', background: '#fff',
+                  left: `calc(${scoreMarkerPercent}% - 2px)`
+                }"
+              ></div>
+            </div>
+            <div class="position-relative text-caption text-medium-emphasis mt-2" style="height: 18px;">
+              <span style="position: absolute; left: 0;">0</span>
+              <span style="position: absolute; left: 25%; transform: translateX(-50%);">0.5 medium</span>
+              <span style="position: absolute; left: 50%; transform: translateX(-50%);">1.0 diverter</span>
+              <span style="position: absolute; right: 0;">2.0+</span>
+            </div>
+            <v-btn
+              to="/info"
+              variant="text"
+              size="small"
+              class="mt-2 px-0"
+              prepend-icon="mdi-information-outline"
+            >
+              How is this calculated?
+            </v-btn>
           </v-card-text>
         </v-card>
       </v-col>
 
       <v-col cols="12" md="6">
-        <v-card color="surface" rounded="lg" height="120">
-          <v-card-text class="d-flex align-center h-100">
-            <div>
-              <div class="text-medium-emphasis text-body-2 mb-1">Diverter Status</div>
-              <v-chip
-                :color="data.diverter_active ? 'error' : 'success'"
-                size="x-large"
-                class="text-h6 font-weight-bold"
-                :prepend-icon="data.diverter_active ? 'mdi-valve-open' : 'mdi-valve-closed'"
-              >
-                {{ data.diverter_active ? 'ACTIVE' : 'INACTIVE' }}
-              </v-chip>
+        <!-- the card itself turns red when active, so no separate alert banner is needed -->
+        <v-card
+          :color="data.diverter_active ? '#A83232' : 'surface'"
+          variant="flat"
+          rounded="lg"
+          height="100%"
+        >
+          <v-card-text>
+            <div class="text-medium-emphasis text-body-2 mb-2">Diverter Status</div>
+            <v-chip
+              :color="data.diverter_active ? 'white' : 'success'"
+              :variant="data.diverter_active ? 'flat' : 'tonal'"
+              :style="data.diverter_active ? { color: '#A83232' } : {}"
+              size="x-large"
+              class="text-h6 font-weight-bold mb-4"
+              :prepend-icon="data.diverter_active ? 'mdi-valve-open' : 'mdi-valve-closed'"
+            >
+              {{ data.diverter_active ? 'ACTIVE' : 'INACTIVE' }}
+            </v-chip>
+            <div v-if="data.diverter_active">
+              <div v-for="(cause, i) in data.causes" :key="i" class="text-body-2">{{ cause }}</div>
+            </div>
+            <div v-else class="text-body-2 text-medium-emphasis">
+              Monitoring. Activates when the combined score reaches HIGH.
             </div>
           </v-card-text>
         </v-card>
@@ -52,7 +91,7 @@
 
     <!-- sensor cards: conductivity first as the primary quantitative signal, camera clarity as the visual check -->
     <v-row class="mb-4">
-      <v-col cols="12" md="7">
+      <v-col cols="12" md="6">
         <v-card color="surface" rounded="lg">
           <v-card-text>
             <div class="d-flex align-center justify-space-between mb-2">
@@ -67,7 +106,7 @@
                 {{ data.conductivity_source === 'sensor' ? 'LIVE SENSOR' : 'SIMULATED' }}
               </v-chip>
             </div>
-            <div class="text-h2 font-weight-bold" :style="{ color: conductivityColor }">
+            <div class="font-weight-bold" :style="{ color: conductivityColor, fontSize: '2rem', lineHeight: 1.1 }">
               {{ data.conductivity ?? '—' }}
             </div>
             <div class="text-medium-emphasis text-body-2">ppm</div>
@@ -88,7 +127,7 @@
         </v-card>
       </v-col>
 
-      <v-col cols="12" md="5">
+      <v-col cols="12" md="6">
         <v-card color="surface" rounded="lg">
           <v-card-text>
             <div class="d-flex align-center justify-space-between mb-2">
@@ -103,7 +142,7 @@
                 {{ data.clarity_source === 'camera' ? 'LIVE CAMERA' : 'SIMULATED' }}
               </v-chip>
             </div>
-            <div class="text-h4 font-weight-bold" :style="{ color: clarityColor }">
+            <div class="font-weight-bold" :style="{ color: clarityColor, fontSize: '2rem', lineHeight: 1.1 }">
               {{ data.turbidity_class ? data.turbidity_class.toUpperCase() : '—' }}
             </div>
             <div class="text-medium-emphasis text-body-2">
@@ -122,7 +161,7 @@
             />
             <div class="d-flex justify-space-between text-caption text-medium-emphasis mt-1">
               <span>Clear</span>
-              <span>Index: {{ data.clarity ?? '—' }}</span>
+              <span>Index: {{ fmt(data.clarity) }}</span>
               <span>High turbidity</span>
             </div>
             <v-btn
@@ -177,6 +216,12 @@ export default {
       return Math.min((this.data.clarity / this.thresholds.clarity) * 100, 100)
     },
 
+    // bar spans 0 to 2, so the 1.0 trigger sits at the midpoint
+    scoreMarkerPercent() {
+      if (this.data.pollution_value == null) return 0
+      return Math.min(this.data.pollution_value / 2, 1) * 100
+    },
+
     conductivityColor() {
       if (!this.data.conductivity) return 'grey'
       if (this.data.conductivity > this.thresholds.conductivity) return '#EF5350'
@@ -208,6 +253,10 @@ export default {
   },
 
   methods: {
+    fmt(v) {
+      return v == null ? '—' : Number(v).toFixed(2)
+    },
+
     async fetchThresholds() {
       try {
         const res = await axios.get(`${API_BASE}/api/thresholds`)

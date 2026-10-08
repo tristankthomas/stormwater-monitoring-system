@@ -58,14 +58,14 @@ def breach_reasons(clarity: float, clarity_source: str, cam: dict, conductivity:
     reasons = []
     if conductivity > thresholds["conductivity"]:
         reasons.append(
-            f"conductivity {conductivity} ppm exceeded {thresholds['conductivity']} ppm "
+            f"Conductivity {conductivity} ppm exceeded {thresholds['conductivity']} ppm "
             f"({simulator.conductivity_source})"
         )
     if clarity >= thresholds["clarity"]:
         if clarity_source == "camera":
-            reasons.append(f"camera classed the water as high turbidity (brightness {cam.get('brightness')})")
+            reasons.append(f"Camera classed the water as high turbidity (brightness {cam.get('brightness')})")
         else:
-            reasons.append(f"clarity index {clarity} reached {thresholds['clarity']} (simulated)")
+            reasons.append(f"Clarity index {clarity} reached {thresholds['clarity']} (simulated)")
     return reasons
 
 
@@ -81,15 +81,25 @@ async def sensor_loop():
         cam = camera.get_analysis()
         clarity, clarity_source = read_clarity(cam)
 
+        # the diverter follows the combined score: it activates only when the score is HIGH
+        score_value, score_level = compute_pollution_score(clarity, conductivity)
+        diverter_active = score_level == "high"
+
         reasons = breach_reasons(clarity, clarity_source, cam, conductivity)
-        diverter_active = len(reasons) > 0
+        if diverter_active and not reasons:
+            # neither signal is over its own limit, the combination pushed the score over
+            reasons = [
+                f"Combined score {score_value}: conductivity {conductivity} ppm "
+                f"({simulator.conductivity_source}) and clarity index {clarity} ({clarity_source}) "
+                f"both elevated"
+            ]
 
         insert_reading(clarity, conductivity, diverter_active)
 
         # log only when the diverter changes state, one entry per episode
         if diverter_active and not diverter_was_active:
             active_since = time.time()
-            insert_event("DIVERTER_ACTIVATED", "; ".join(reasons))
+            insert_event("DIVERTER_ACTIVATED", ". ".join(reasons))
         elif not diverter_active and diverter_was_active:
             duration = int(time.time() - active_since) if active_since else 0
             insert_event("DIVERTER_CLEARED", f"readings back below thresholds after {duration} s")
@@ -106,7 +116,9 @@ async def sensor_loop():
             "conductivity": conductivity,
             "conductivity_source": simulator.conductivity_source,  # "sensor" or "simulated"
             "diverter_active": diverter_active,
-            "pollution_score": compute_pollution_score(clarity, conductivity),
+            "pollution_score": score_level,
+            "pollution_value": score_value,
+            "causes": reasons if diverter_active else [],
             "timestamp": int(time.time())
         }
 

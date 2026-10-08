@@ -49,10 +49,11 @@ export default {
     return {
       connected: false,
       navItems: [
-        { to: '/',         icon: 'mdi-view-dashboard', title: 'Dashboard' },
-        { to: '/history',  icon: 'mdi-chart-line',     title: 'History' },
-        { to: '/camera',   icon: 'mdi-camera',          title: 'Camera' },
-        { to: '/settings', icon: 'mdi-tune',            title: 'Settings' },
+        { to: '/',         icon: 'mdi-view-dashboard',       title: 'Dashboard' },
+        { to: '/history',  icon: 'mdi-chart-line',           title: 'History' },
+        { to: '/camera',   icon: 'mdi-camera',               title: 'Camera' },
+        { to: '/settings', icon: 'mdi-tune',                 title: 'Settings' },
+        { to: '/info',     icon: 'mdi-information-outline',  title: 'Info' },
       ]
     }
   },
@@ -63,7 +64,7 @@ export default {
 
   methods: {
     connectWebSocket() {
-      // build ws url relative to whatever host is serving the page —
+      // build ws url relative to whatever host is serving the page,
       // works on localhost during dev and on the pi's ip/hostname in production
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       const wsUrl = `${protocol}//${window.location.host}/ws/live`
