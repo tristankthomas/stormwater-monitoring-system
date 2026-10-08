@@ -42,7 +42,7 @@
           <v-divider />
 
           <v-card-text v-if="events.length === 0" class="text-center text-medium-emphasis py-8">
-            No threshold breach events recorded yet.
+            No diverter events recorded yet.
           </v-card-text>
 
           <v-list v-else bg-color="transparent">
@@ -50,9 +50,10 @@
               v-for="(event, i) in events"
               :key="i"
               :subtitle="event.message"
-              :prepend-icon="'mdi-alert-circle-outline'"
-              prepend-icon-color="error"
             >
+              <template #prepend>
+                <v-icon :color="eventColor(event)" class="mr-4">{{ eventIcon(event) }}</v-icon>
+              </template>
               <template #title>
                 <span class="text-caption text-medium-emphasis">
                   {{ formatTimestamp(event.timestamp) }}
@@ -82,7 +83,7 @@ export default {
     return {
       events: [],
       readings: [],
-      thresholds: { turbidity: 50, conductivity: 800 },
+      thresholds: { clarity: 1, conductivity: 800 },
     }
   },
 
@@ -91,12 +92,12 @@ export default {
       const reversed = [...this.readings].reverse()
       return [
         {
-          name: 'Turbidity (NTU)',
-          data: reversed.map(r => ({ x: r.timestamp * 1000, y: r.turbidity }))
-        },
-        {
           name: 'Conductivity (ppm)',
           data: reversed.map(r => ({ x: r.timestamp * 1000, y: r.conductivity }))
+        },
+        {
+          name: 'Clarity index',
+          data: reversed.map(r => ({ x: r.timestamp * 1000, y: r.clarity }))
         }
       ]
     },
@@ -110,25 +111,42 @@ export default {
         },
         theme: { mode: 'dark' },
         stroke: { curve: 'smooth', width: 2 },
-        colors: ['#00BCD4', '#FFA726'],
+        colors: ['#FFA726', '#00BCD4'],
         xaxis: {
           type: 'datetime',
           labels: { style: { colors: '#9e9e9e' } }
         },
-        yaxis: {
-          labels: { style: { colors: '#9e9e9e' } }
-        },
+        // two axes since conductivity (ppm) and the clarity index (0-2) are on very different scales
+        yaxis: [
+          {
+            seriesName: 'Conductivity (ppm)',
+            min: 0,
+            title: { text: 'ppm', style: { color: '#9e9e9e' } },
+            labels: { style: { colors: '#9e9e9e' }, formatter: v => Math.round(v) }
+          },
+          {
+            seriesName: 'Clarity index',
+            opposite: true,
+            min: 0,
+            max: 2,
+            tickAmount: 4,
+            title: { text: 'clarity index (1 = high turbidity)', style: { color: '#9e9e9e' } },
+            labels: { style: { colors: '#9e9e9e' }, formatter: v => v.toFixed(1) }
+          }
+        ],
         annotations: {
           yaxis: [
             {
-              y: this.thresholds.turbidity,
-              borderColor: '#EF5350',
-              label: { text: 'Turbidity Threshold', style: { color: '#EF5350', background: 'transparent' } }
-            },
-            {
               y: this.thresholds.conductivity,
+              yAxisIndex: 0,
               borderColor: '#FFA726',
               label: { text: 'Conductivity Threshold', style: { color: '#FFA726', background: 'transparent' } }
+            },
+            {
+              y: this.thresholds.clarity,
+              yAxisIndex: 1,
+              borderColor: '#00BCD4',
+              label: { text: 'High turbidity', style: { color: '#00BCD4', background: 'transparent' } }
             }
           ]
         },
@@ -162,6 +180,14 @@ export default {
       } catch (e) {
         console.error('failed to fetch history data', e)
       }
+    },
+
+    eventIcon(event) {
+      return event.event_type === 'DIVERTER_CLEARED' ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline'
+    },
+
+    eventColor(event) {
+      return event.event_type === 'DIVERTER_CLEARED' ? 'success' : 'error'
     },
 
     formatTimestamp(ts) {

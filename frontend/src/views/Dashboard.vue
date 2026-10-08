@@ -12,16 +12,6 @@
       <strong>Diverter Activated</strong> — pollution threshold exceeded. Stormwater is being diverted.
     </v-alert>
 
-    <!-- rain event banner -->
-    <v-alert
-      v-if="data.rain_event"
-      type="warning"
-      class="mb-6"
-      icon="mdi-weather-rainy"
-    >
-      <strong>Rain Event Detected</strong> — high-frequency sampling active.
-    </v-alert>
-
     <!-- top row: pollution score and diverter status -->
     <v-row class="mb-4">
       <v-col cols="12" md="6">
@@ -60,14 +50,13 @@
       </v-col>
     </v-row>
 
-    <!-- sensor reading cards: conductivity first as the primary quantitative signal -->
+    <!-- sensor cards: conductivity first as the primary quantitative signal, camera clarity as the visual check -->
     <v-row class="mb-4">
       <v-col cols="12" md="7">
         <v-card color="surface" rounded="lg">
           <v-card-text>
             <div class="d-flex align-center justify-space-between mb-2">
               <div class="text-medium-emphasis text-body-2">Conductivity</div>
-              <!-- shown once the backend reports where the reading came from -->
               <v-chip
                 v-if="data.conductivity_source"
                 :color="data.conductivity_source === 'sensor' ? 'success' : 'grey'"
@@ -103,34 +92,48 @@
         <v-card color="surface" rounded="lg">
           <v-card-text>
             <div class="d-flex align-center justify-space-between mb-2">
-              <div class="text-medium-emphasis text-body-2">Turbidity</div>
-              <!-- turbidity is still simulated until the camera feeds it -->
+              <div class="text-medium-emphasis text-body-2">Water Clarity</div>
               <v-chip
-                color="grey"
-                prepend-icon="mdi-sine-wave"
+                v-if="data.clarity_source"
+                :color="data.clarity_source === 'camera' ? 'success' : 'grey'"
+                :prepend-icon="data.clarity_source === 'camera' ? 'mdi-camera' : 'mdi-sine-wave'"
                 size="x-small"
                 label
               >
-                SIMULATED
+                {{ data.clarity_source === 'camera' ? 'LIVE CAMERA' : 'SIMULATED' }}
               </v-chip>
             </div>
-            <div class="text-h3 font-weight-bold" :style="{ color: turbidityColor }">
-              {{ data.turbidity ?? '—' }}
+            <div class="text-h4 font-weight-bold" :style="{ color: clarityColor }">
+              {{ data.turbidity_class ? data.turbidity_class.toUpperCase() : '—' }}
             </div>
-            <div class="text-medium-emphasis text-body-2">NTU</div>
+            <div class="text-medium-emphasis text-body-2">
+              <span v-if="data.clarity_source === 'camera'">
+                Brightness {{ data.brightness }} · Debris {{ data.debris_count }}
+              </span>
+              <span v-else>Camera not feeding this value</span>
+            </div>
             <v-progress-linear
-              :model-value="turbidityPercent"
-              :color="turbidityColor"
+              :model-value="clarityPercent"
+              :color="clarityColor"
               class="mt-4"
               height="8"
               rounded
               bg-color="grey-darken-3"
             />
             <div class="d-flex justify-space-between text-caption text-medium-emphasis mt-1">
-              <span>0</span>
-              <span>Threshold: {{ thresholds.turbidity }} NTU</span>
-              <span>150</span>
+              <span>Clear</span>
+              <span>Index: {{ data.clarity ?? '—' }}</span>
+              <span>High turbidity</span>
             </div>
+            <v-btn
+              to="/camera"
+              variant="text"
+              size="small"
+              class="mt-3 px-0"
+              prepend-icon="mdi-camera"
+            >
+              View live feed
+            </v-btn>
           </v-card-text>
         </v-card>
       </v-col>
@@ -155,7 +158,7 @@ export default {
 
   data() {
     return {
-      thresholds: { turbidity: 50, conductivity: 800 },
+      thresholds: { clarity: 1, conductivity: 800 },
       data: {},
       lastUpdated: '—',
       ws: null,
@@ -164,19 +167,14 @@ export default {
   },
 
   computed: {
-    turbidityPercent() {
-      return Math.min((this.data.turbidity / 150) * 100, 100)
-    },
-
     conductivityPercent() {
       return Math.min((this.data.conductivity / 2000) * 100, 100)
     },
 
-    turbidityColor() {
-      if (!this.data.turbidity) return 'grey'
-      if (this.data.turbidity > this.thresholds.turbidity) return '#EF5350'
-      if (this.data.turbidity > this.thresholds.turbidity * 0.7) return '#FFA726'
-      return '#66BB6A'
+    // the clarity bar fills as the water approaches the "high turbidity" boundary
+    clarityPercent() {
+      if (this.data.clarity == null) return 0
+      return Math.min((this.data.clarity / this.thresholds.clarity) * 100, 100)
     },
 
     conductivityColor() {
@@ -184,6 +182,11 @@ export default {
       if (this.data.conductivity > this.thresholds.conductivity) return '#EF5350'
       if (this.data.conductivity > this.thresholds.conductivity * 0.7) return '#FFA726'
       return '#66BB6A'
+    },
+
+    clarityColor() {
+      const map = { clear: '#66BB6A', moderate: '#FFA726', high: '#EF5350' }
+      return map[this.data.turbidity_class] ?? 'grey'
     },
 
     scoreColor() {

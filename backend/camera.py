@@ -10,12 +10,13 @@ try:
 except ImportError:
     CAMERA_AVAILABLE = False
 
-# thresholds for opencv turbidity classification based on image brightness
-TURBIDITY_BRIGHT_THRESHOLD = 100  # above this = clear water
-TURBIDITY_DARK_THRESHOLD = 60     # below this = high turbidity
-
-# minimum contour area to count as debris (filters out noise)
-DEBRIS_MIN_AREA = 500
+# shared mutable thresholds for the opencv analysis, adjustable at runtime via /api/camera/thresholds
+vision_thresholds = {
+    "clear_brightness": 100.0,   # mean brightness above this = clear water
+    "turbid_brightness": 60.0,   # mean brightness below this = high turbidity
+    "debris_min_area": 500.0,    # minimum contour area (px) to count as debris
+}
+DEFAULT_VISION_THRESHOLDS = dict(vision_thresholds)
 
 
 class CameraProcessor:
@@ -25,6 +26,7 @@ class CameraProcessor:
         self.camera_ready = False   # true only if a camera was found and started
         self.analysis = {
             "turbidity_class": "unknown",
+            "clarity_index": None,
             "debris_count": 0,
             "brightness": None,
             "available": False
@@ -80,17 +82,26 @@ class CameraProcessor:
             time.sleep(0.1)  # ~10fps, sufficient for water monitoring
 
     def _analyse_frame(self, frame: np.ndarray) -> dict:
+        clear = vision_thresholds["clear_brightness"]
+        turbid = vision_thresholds["turbid_brightness"]
+        debris_min_area = vision_thresholds["debris_min_area"]
+
         # convert to greyscale for brightness and contour analysis
         grey = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         brightness = float(np.mean(grey))
 
         # classify turbidity based on average pixel brightness
-        if brightness > TURBIDITY_BRIGHT_THRESHOLD:
+        if brightness > clear:
             turbidity_class = "clear"
-        elif brightness > TURBIDITY_DARK_THRESHOLD:
+        elif brightness > turbid:
             turbidity_class = "moderate"
         else:
             turbidity_class = "high"
+
+        # continuous clarity index: 0 at or above the clear threshold, 1 at the turbid threshold
+        # (the "high" class boundary), capped at 2 for very dark frames
+        span = max(clear - turbid, 1.0)
+        clarity_index = max(0.0, min((clear - brightness) / span, 2.0))
 
         # detect debris using adaptive thresholding and contour detection
         blurred = cv2.GaussianBlur(grey, (5, 5), 0)
@@ -103,10 +114,11 @@ class CameraProcessor:
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # count only contours large enough to be real debris
-        debris_count = sum(1 for c in contours if cv2.contourArea(c) > DEBRIS_MIN_AREA)
+        debris_count = sum(1 for c in contours if cv2.contourArea(c) > debris_min_area)
 
         return {
             "turbidity_class": turbidity_class,
+            "clarity_index": round(clarity_index, 3),
             "debris_count": debris_count,
             "brightness": round(brightness, 2),
             "available": True

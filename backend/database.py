@@ -17,7 +17,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS readings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp INTEGER NOT NULL,
-            turbidity REAL NOT NULL,
+            clarity REAL NOT NULL,
             conductivity REAL NOT NULL,
             diverter_active INTEGER NOT NULL DEFAULT 0
         )
@@ -30,24 +30,32 @@ def init_db():
             message TEXT
         )
     ''')
+
+    # databases created before the camera replaced simulated turbidity have a "turbidity" column in NTU,
+    # rename it and drop the old rows since the unit is now the camera clarity index
+    columns = [row[1] for row in c.execute("PRAGMA table_info(readings)").fetchall()]
+    if "turbidity" in columns and "clarity" not in columns:
+        c.execute("ALTER TABLE readings RENAME COLUMN turbidity TO clarity")
+        c.execute("DELETE FROM readings")
+
     conn.commit()
     conn.close()
 
 
-def insert_reading(turbidity: float, conductivity: float, diverter_active: bool):
+def insert_reading(clarity: float, conductivity: float, diverter_active: bool):
     # store sensor reading with unix timestamp
     conn = get_conn()
     c = conn.cursor()
     c.execute(
-        "INSERT INTO readings (timestamp, turbidity, conductivity, diverter_active) VALUES (?, ?, ?, ?)",
-        (int(time.time()), round(turbidity, 2), round(conductivity, 2), int(diverter_active))
+        "INSERT INTO readings (timestamp, clarity, conductivity, diverter_active) VALUES (?, ?, ?, ?)",
+        (int(time.time()), round(clarity, 3), round(conductivity, 2), int(diverter_active))
     )
     conn.commit()
     conn.close()
 
 
 def insert_event(event_type: str, message: str):
-    # log threshold breaches and diverter activations
+    # log diverter activations and clearances
     conn = get_conn()
     c = conn.cursor()
     c.execute(
@@ -63,7 +71,7 @@ def get_recent_readings(limit: int = 50) -> list[dict]:
     conn = get_conn()
     c = conn.cursor()
     c.execute(
-        "SELECT timestamp, turbidity, conductivity, diverter_active FROM readings ORDER BY timestamp DESC LIMIT ?",
+        "SELECT timestamp, clarity, conductivity, diverter_active FROM readings ORDER BY timestamp DESC LIMIT ?",
         (limit,)
     )
     rows = c.fetchall()
@@ -71,7 +79,7 @@ def get_recent_readings(limit: int = 50) -> list[dict]:
     return [
         {
             "timestamp": r[0],
-            "turbidity": r[1],
+            "clarity": r[1],
             "conductivity": r[2],
             "diverter_active": bool(r[3])
         }

@@ -4,14 +4,14 @@ from conductivity import conductivity_sensor
 
 # shared mutable thresholds — updated at runtime via the settings endpoint
 thresholds = {
-    "turbidity": 50.0,      # NTU - above this triggers diverter
+    "clarity": 1.0,         # camera clarity index at which water counts as turbid (1.0 = the "high" class boundary)
     "conductivity": 800.0   # ppm - elevated conductivity indicates contamination
 }
 
 
-def compute_pollution_score(turbidity: float, conductivity: float) -> str:
-    # turbidity weighted higher as the primary visual indicator
-    score = (turbidity / thresholds["turbidity"]) * 0.6 + (conductivity / thresholds["conductivity"]) * 0.4
+def compute_pollution_score(clarity: float, conductivity: float) -> str:
+    # conductivity weighted higher as the primary quantitative signal, camera clarity is the secondary visual check
+    score = (conductivity / thresholds["conductivity"]) * 0.6 + (clarity / thresholds["clarity"]) * 0.4
     if score < 0.5:
         return "low"
     elif score < 1.0:
@@ -21,41 +21,25 @@ def compute_pollution_score(turbidity: float, conductivity: float) -> str:
 
 
 class SensorSimulator:
-    # simulates realistic sensor behaviour including first-flush rain events
-    # conductivity comes from the real sensor when one is attached, otherwise it is simulated
+    # stand-in readings used when the real hardware is not attached (e.g. on a laptop)
     def __init__(self):
-        self.rain_event = False
-        self.rain_timer = 0
         self.conductivity_source = "simulated"  # "sensor" or "simulated"
 
-    def read(self) -> tuple[float, float]:
-        # randomly trigger a rain event with low probability each cycle
-        if not self.rain_event and random.random() < 0.005:
-            self.rain_event = True
-            self.rain_timer = random.randint(20, 60)  # event lasts 40-120 seconds at 2s intervals
+    def simulated_clarity(self) -> float:
+        # 0 = clear, 1 = the "high turbidity" boundary; baseline dry weather stays well below it
+        return round(max(0.0, random.uniform(-0.3, 0.5)), 3)
 
-        if self.rain_event:
-            # first-flush: elevated turbidity and conductivity from road runoff
-            turbidity = random.uniform(60, 120)
-            conductivity = random.uniform(900, 1500)
-            self.rain_timer -= 1
-            if self.rain_timer <= 0:
-                self.rain_event = False
-        else:
-            # baseline dry weather readings
-            turbidity = random.uniform(5, 30)
-            conductivity = random.uniform(200, 600)
-
-        # replace the simulated conductivity with the real reading when possible
+    def read_conductivity(self) -> float:
+        # baseline dry weather reading, replaced by the real sensor when one is attached
+        value = random.uniform(200, 600)
         self.conductivity_source = "simulated"
         if conductivity_sensor.available:
             try:
-                conductivity = conductivity_sensor.read_ppm()
+                value = conductivity_sensor.read_ppm()
                 self.conductivity_source = "sensor"
             except Exception as e:
                 print(f"conductivity read failed, using simulated value: {e}")
-
-        return round(turbidity, 2), round(conductivity, 2)
+        return round(value, 2)
 
 
 # single shared simulator instance used across the app

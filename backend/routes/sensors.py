@@ -1,11 +1,11 @@
 from fastapi import APIRouter
 from database import get_recent_readings, clear_db
-from simulator import simulator, compute_pollution_score, thresholds
+from simulator import thresholds
+import state
 
 router = APIRouter(prefix="/api")
 
 DEFAULT_THRESHOLDS = {
-    "turbidity": 50.0,
     "conductivity": 800.0
 }
 
@@ -18,19 +18,9 @@ def get_readings(limit: int = 50):
 
 @router.get("/status")
 def get_status():
-    # snapshot of current sensor state, used on initial page load
-    turbidity, conductivity = simulator.read()
-    diverter_active = (
-        turbidity > thresholds["turbidity"] or
-        conductivity > thresholds["conductivity"]
-    )
-    return {
-        "turbidity": turbidity,
-        "conductivity": conductivity,
-        "diverter_active": diverter_active,
-        "pollution_score": compute_pollution_score(turbidity, conductivity),
-        "rain_event": simulator.rain_event
-    }
+    # latest snapshot from the sensor loop, used on initial page load
+    # (empty until the first cycle completes, the dashboard shows dashes until then)
+    return state.latest
 
 
 @router.get("/thresholds")
@@ -40,9 +30,9 @@ def get_thresholds():
 
 
 @router.post("/thresholds")
-def update_thresholds(turbidity: float, conductivity: float):
-    # update shared thresholds at runtime without restarting the server
-    thresholds["turbidity"] = turbidity
+def update_thresholds(conductivity: float):
+    # update the shared conductivity threshold at runtime without restarting the server
+    # (the clarity threshold is fixed, it is tuned through the camera brightness thresholds)
     thresholds["conductivity"] = conductivity
     return thresholds
 
@@ -50,7 +40,6 @@ def update_thresholds(turbidity: float, conductivity: float):
 @router.post("/thresholds/reset")
 def reset_thresholds():
     # reset thresholds back to default values
-    thresholds["turbidity"] = DEFAULT_THRESHOLDS["turbidity"]
     thresholds["conductivity"] = DEFAULT_THRESHOLDS["conductivity"]
     return thresholds
 
