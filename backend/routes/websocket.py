@@ -5,6 +5,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from database import insert_reading, insert_event
 from simulator import simulator, compute_pollution_score, thresholds
 from camera import camera
+from diverter_led import diverter_led
 import state
 
 router = APIRouter()
@@ -84,6 +85,7 @@ async def sensor_loop():
         # the diverter follows the combined score: it activates only when the score is HIGH
         score_value, score_level = compute_pollution_score(clarity, conductivity)
         diverter_active = score_level == "high"
+        diverter_led.set(diverter_active)
 
         reasons = breach_reasons(clarity, clarity_source, cam, conductivity)
         if diverter_active and not reasons:

@@ -114,7 +114,8 @@ export default {
         colors: ['#FFA726', '#00BCD4'],
         xaxis: {
           type: 'datetime',
-          labels: { style: { colors: '#9e9e9e' } }
+          // show local time, ApexCharts defaults to UTC
+          labels: { datetimeUTC: false, style: { colors: '#9e9e9e' } }
         },
         // two axes since conductivity (ppm) and the clarity index (0-2) are on very different scales
         yaxis: [
