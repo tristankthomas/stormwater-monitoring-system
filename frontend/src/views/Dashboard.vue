@@ -109,7 +109,10 @@
             <div class="font-weight-bold" :style="{ color: conductivityColor, fontSize: '2rem', lineHeight: 1.1 }">
               {{ data.conductivity ?? '—' }}
             </div>
-            <div class="text-medium-emphasis text-body-2">ppm</div>
+            <div class="text-medium-emphasis text-body-2">mg/L</div>
+            <div v-if="data.conductivity_tds_ppm != null" class="text-caption text-medium-emphasis mt-1">
+              {{ data.conductivity_tds_ppm }} ppm on the sensor's uncalibrated TDS curve ({{ data.voltage }} V)
+            </div>
             <v-progress-linear
               :model-value="conductivityPercent"
               :color="conductivityColor"
@@ -120,7 +123,7 @@
             />
             <div class="d-flex justify-space-between text-caption text-medium-emphasis mt-1">
               <span>0</span>
-              <span>Threshold: {{ thresholds.conductivity }} ppm</span>
+              <span>Threshold: {{ thresholds.conductivity }} mg/L</span>
               <span>2000</span>
             </div>
           </v-card-text>

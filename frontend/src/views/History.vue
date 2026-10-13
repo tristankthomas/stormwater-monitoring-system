@@ -92,7 +92,7 @@ export default {
       const reversed = [...this.readings].reverse()
       return [
         {
-          name: 'Conductivity (ppm)',
+          name: 'Conductivity (mg/L)',
           data: reversed.map(r => ({ x: r.timestamp * 1000, y: r.conductivity }))
         },
         {
@@ -117,12 +117,12 @@ export default {
           // show local time, ApexCharts defaults to UTC
           labels: { datetimeUTC: false, style: { colors: '#9e9e9e' } }
         },
-        // two axes since conductivity (ppm) and the clarity index (0-2) are on very different scales
+        // two axes since conductivity (mg/L) and the clarity index (0-2) are on very different scales
         yaxis: [
           {
-            seriesName: 'Conductivity (ppm)',
+            seriesName: 'Conductivity (mg/L)',
             min: 0,
-            title: { text: 'ppm', style: { color: '#9e9e9e' } },
+            title: { text: 'mg/L', style: { color: '#9e9e9e' } },
             labels: { style: { colors: '#9e9e9e' }, formatter: v => Math.round(v) }
           },
           {

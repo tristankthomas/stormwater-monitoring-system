@@ -19,7 +19,7 @@
           <v-col cols="12" md="6">
             <div class="font-weight-bold mb-1">Conductivity (primary signal)</div>
             Measures dissolved salts and ions, which rise sharply in contaminated runoff. It is read from a
-            probe through an ADS1115 converter and shown in ppm. Each probe needs its own calibration.
+            probe through an ADS1115 converter and shown in mg/L. The probe is calibrated against salt solutions of known concentration, and the sensor's own uncalibrated TDS reading in ppm is shown beside it.
           </v-col>
           <v-col cols="12" md="6">
             <div class="font-weight-bold mb-1">Water clarity (secondary signal)</div>
@@ -65,7 +65,7 @@
             <div class="font-weight-medium">score = max(c, k) + 0.5 × min(c, k)</div>
             <div class="text-body-2 text-medium-emphasis">
               = {{ fmt(Math.max(scoreC, scoreK)) }} + 0.5 × {{ fmt(Math.min(scoreC, scoreK)) }} =
-              <strong class="text-high-emphasis">{{ data.pollution_value ?? '—' }}</strong>
+              <strong class="text-high-emphasis">{{ fmt(data.pollution_value) }}</strong>
             </div>
           </v-col>
         </v-row>

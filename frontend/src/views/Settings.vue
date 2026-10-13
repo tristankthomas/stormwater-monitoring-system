@@ -16,7 +16,7 @@
             <div class="mb-6">
               <div class="d-flex justify-space-between mb-2">
                 <span class="text-body-2">Conductivity Threshold</span>
-                <span class="text-primary font-weight-bold">{{ localConductivity }} ppm</span>
+                <span class="text-primary font-weight-bold">{{ localConductivity }} mg/L</span>
               </div>
               <v-slider
                 v-model="localConductivity"
@@ -28,7 +28,7 @@
                 thumb-label
               />
               <div class="text-caption text-medium-emphasis">
-                Diverter activates when conductivity exceeds this value. Elevated conductivity indicates dissolved salts and pollutants. Background urban stormwater is typically 200-600 ppm.
+                Diverter activates when conductivity exceeds this value. Elevated conductivity indicates dissolved salts and pollutants. Background urban stormwater is typically 200-600 mg/L.
               </div>
             </div>
 

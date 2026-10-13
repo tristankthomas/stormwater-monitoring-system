@@ -5,7 +5,7 @@ from conductivity import conductivity_sensor
 # shared mutable thresholds — updated at runtime via the settings endpoint
 thresholds = {
     "clarity": 1.0,         # camera clarity index at which water counts as turbid (1.0 = the "high" class boundary)
-    "conductivity": 800.0   # ppm - elevated conductivity indicates contamination
+    "conductivity": 800.0   # mg/L - elevated conductivity indicates contamination
 }
 
 

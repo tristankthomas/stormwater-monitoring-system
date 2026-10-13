@@ -5,6 +5,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from database import insert_reading, insert_event
 from simulator import simulator, compute_pollution_score, thresholds
 from camera import camera
+from conductivity import conductivity_sensor, generic_ppm
 from diverter_led import diverter_led
 import state
 
@@ -59,7 +60,7 @@ def breach_reasons(clarity: float, clarity_source: str, cam: dict, conductivity:
     reasons = []
     if conductivity > thresholds["conductivity"]:
         reasons.append(
-            f"Conductivity {conductivity} ppm exceeded {thresholds['conductivity']} ppm "
+            f"Conductivity {conductivity} mg/L exceeded {thresholds['conductivity']} mg/L "
             f"({simulator.conductivity_source})"
         )
     if clarity >= thresholds["clarity"]:
@@ -91,7 +92,7 @@ async def sensor_loop():
         if diverter_active and not reasons:
             # neither signal is over its own limit, the combination pushed the score over
             reasons = [
-                f"Combined score {score_value}: conductivity {conductivity} ppm "
+                f"Combined score {score_value}: conductivity {conductivity} mg/L "
                 f"({simulator.conductivity_source}) and clarity index {clarity} ({clarity_source}) "
                 f"both elevated"
             ]
@@ -108,6 +109,9 @@ async def sensor_loop():
             active_since = None
         diverter_was_active = diverter_active
 
+        # the uncalibrated TDS reading, only available when the real probe is attached
+        volts = conductivity_sensor.last_voltage if simulator.conductivity_source == "sensor" else None
+
         from_camera = clarity_source == "camera"
         payload = {
             "clarity": clarity,
@@ -115,7 +119,9 @@ async def sensor_loop():
             "turbidity_class": cam["turbidity_class"] if from_camera else clarity_class(clarity),
             "brightness": cam.get("brightness") if from_camera else None,
             "debris_count": cam.get("debris_count") if from_camera else None,
-            "conductivity": conductivity,
+            "conductivity": conductivity,                          # calibrated, mg/L
+            "voltage": round(volts, 3) if volts is not None else None,
+            "conductivity_tds_ppm": round(generic_ppm(volts), 1) if volts is not None else None,  # uncalibrated curve, ppm
             "conductivity_source": simulator.conductivity_source,  # "sensor" or "simulated"
             "diverter_active": diverter_active,
             "pollution_score": score_level,

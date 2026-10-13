@@ -1,348 +1,116 @@
-<template>
-  <v-container fluid class="pa-6">
+# Stormwater Monitoring System
 
-    <!-- alert banner shown when diverter is active, with the reason(s) -->
-    <v-alert
-      v-if="data.diverter_active"
-      type="error"
-      prominent
-      class="mb-6"
-      icon="mdi-alert-circle"
-    >
-      <div><strong>Diverter Activated</strong> — stormwater is being diverted.</div>
-      <div v-for="(cause, i) in data.causes" :key="i" class="text-body-2">{{ cause }}</div>
-    </v-alert>
+A real-time stormwater pollution monitoring prototype. It monitors water quality at a stormwater drain outlet during first-flush rain events, combines a conductivity reading with a camera-derived clarity index into a pollution score, and activates a diverter when that score reaches HIGH. The aim is to limit the first flush of pollutants entering the Yarra.
 
-    <!-- top row: combined pollution score and what it means for the diverter -->
-    <v-row class="mb-4">
-      <v-col cols="12" md="6">
-        <v-card color="surface" rounded="lg" height="100%">
-          <v-card-text>
-            <div class="text-medium-emphasis text-body-2 mb-2">Pollution Score</div>
-            <div class="d-flex align-center mb-4">
-              <v-chip
-                :color="scoreColor"
-                size="x-large"
-                class="text-h6 font-weight-bold mr-4"
-              >
-                {{ data.pollution_score?.toUpperCase() ?? '—' }}
-              </v-chip>
-              <div>
-                <div class="font-weight-bold" :style="{ fontSize: '2rem', lineHeight: 1.1 }">{{ data.pollution_value ?? '—' }}</div>
-                <div class="text-caption text-medium-emphasis">diverter triggers at 1.0 or above</div>
-              </div>
-            </div>
-            <!-- zoned bar: green below 0.5, amber 0.5 to 1.0, red from 1.0, marker shows the current score -->
-            <div class="position-relative" style="height: 12px; border-radius: 6px; overflow: hidden; display: flex;">
-              <div style="width: 25%; background: #66BB6A; opacity: 0.35;"></div>
-              <div style="width: 25%; background: #FFA726; opacity: 0.35;"></div>
-              <div style="width: 50%; background: #EF5350; opacity: 0.35;"></div>
-            </div>
-            <div
-              class="position-relative"
-              style="height: 0;"
-            >
-              <div
-                :style="{
-                  position: 'absolute', top: '-16px', width: '4px', height: '20px',
-                  borderRadius: '2px', background: '#fff',
-                  left: `calc(${scoreMarkerPercent}% - 2px)`
-                }"
-              ></div>
-            </div>
-            <div class="position-relative text-caption text-medium-emphasis mt-2" style="height: 18px;">
-              <span style="position: absolute; left: 0;">0</span>
-              <span style="position: absolute; left: 25%; transform: translateX(-50%);">0.5 medium</span>
-              <span style="position: absolute; left: 50%; transform: translateX(-50%);">1.0 diverter</span>
-              <span style="position: absolute; right: 0;">2.0+</span>
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
+## Architecture
 
-      <v-col cols="12" md="6">
-        <v-card color="surface" rounded="lg" height="100%">
-          <v-card-text>
-            <div class="text-medium-emphasis text-body-2 mb-2">Diverter Status</div>
-            <v-chip
-              :color="data.diverter_active ? 'error' : 'success'"
-              size="x-large"
-              class="text-h6 font-weight-bold mb-4"
-              :prepend-icon="data.diverter_active ? 'mdi-valve-open' : 'mdi-valve-closed'"
-            >
-              {{ data.diverter_active ? 'ACTIVE' : 'INACTIVE' }}
-            </v-chip>
-            <div v-if="data.diverter_active">
-              <div v-for="(cause, i) in data.causes" :key="i" class="text-body-2">{{ cause }}</div>
-            </div>
-            <div v-else class="text-body-2 text-medium-emphasis">
-              Monitoring. Activates when the combined score reaches HIGH.
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+```
+backend/    FastAPI server: sensor reading, camera analysis, SQLite storage, WebSocket broadcasting
+frontend/   Vue 3 + Vuetify dashboard: live readings, history chart, event log, settings, live camera feed
+```
 
-    <!-- sensor cards: conductivity first as the primary quantitative signal, camera clarity as the visual check -->
-    <v-row class="mb-4">
-      <v-col cols="12" md="6">
-        <v-card color="surface" rounded="lg">
-          <v-card-text>
-            <div class="d-flex align-center justify-space-between mb-2">
-              <div class="text-medium-emphasis text-body-2">Conductivity</div>
-              <v-chip
-                v-if="data.conductivity_source"
-                :color="data.conductivity_source === 'sensor' ? 'success' : 'grey'"
-                :prepend-icon="data.conductivity_source === 'sensor' ? 'mdi-access-point' : 'mdi-sine-wave'"
-                size="x-small"
-                label
-              >
-                {{ data.conductivity_source === 'sensor' ? 'LIVE SENSOR' : 'SIMULATED' }}
-              </v-chip>
-            </div>
-            <div class="font-weight-bold" :style="{ color: conductivityColor, fontSize: '3.5rem', lineHeight: 1.1 }">
-              {{ data.conductivity ?? '—' }}
-            </div>
-            <div class="text-medium-emphasis text-body-2">ppm</div>
-            <v-progress-linear
-              :model-value="conductivityPercent"
-              :color="conductivityColor"
-              class="mt-4"
-              height="8"
-              rounded
-              bg-color="grey-darken-3"
-            />
-            <div class="d-flex justify-space-between text-caption text-medium-emphasis mt-1">
-              <span>0</span>
-              <span>Threshold: {{ thresholds.conductivity }} ppm</span>
-              <span>2000</span>
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
+## Stack
 
-      <v-col cols="12" md="6">
-        <v-card color="surface" rounded="lg">
-          <v-card-text>
-            <div class="d-flex align-center justify-space-between mb-2">
-              <div class="text-medium-emphasis text-body-2">Water Clarity</div>
-              <v-chip
-                v-if="data.clarity_source"
-                :color="data.clarity_source === 'camera' ? 'success' : 'grey'"
-                :prepend-icon="data.clarity_source === 'camera' ? 'mdi-camera' : 'mdi-sine-wave'"
-                size="x-small"
-                label
-              >
-                {{ data.clarity_source === 'camera' ? 'LIVE CAMERA' : 'SIMULATED' }}
-              </v-chip>
-            </div>
-            <div class="font-weight-bold" :style="{ color: clarityColor, fontSize: '3.5rem', lineHeight: 1.1 }">
-              {{ data.turbidity_class ? data.turbidity_class.toUpperCase() : '—' }}
-            </div>
-            <div class="text-medium-emphasis text-body-2">
-              <span v-if="data.clarity_source === 'camera'">
-                Brightness {{ data.brightness }} · Debris {{ data.debris_count }}
-              </span>
-              <span v-else>Camera not feeding this value</span>
-            </div>
-            <v-progress-linear
-              :model-value="clarityPercent"
-              :color="clarityColor"
-              class="mt-4"
-              height="8"
-              rounded
-              bg-color="grey-darken-3"
-            />
-            <div class="d-flex justify-space-between text-caption text-medium-emphasis mt-1">
-              <span>Clear</span>
-              <span>Index: {{ data.clarity ?? '—' }}</span>
-              <span>High turbidity</span>
-            </div>
-            <v-btn
-              to="/camera"
-              variant="text"
-              size="small"
-              class="mt-3 px-0"
-              prepend-icon="mdi-camera"
-            >
-              View live feed
-            </v-btn>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+- **Backend:** Python, FastAPI, SQLite, Uvicorn, OpenCV, smbus2
+- **Frontend:** Vue 3, Vuetify, ApexCharts, Axios
+- **Hardware:** Raspberry Pi 4, CSI camera module (Picamera2), analog conductivity (TDS) probe read through an ADS1115 ADC. A GPIO LED to represent the diverter is planned.
 
-    <!-- how the score is worked out, using the live readings -->
-    <v-card color="surface" rounded="lg" class="mb-4">
-      <v-card-title class="pa-4 text-body-1 font-weight-bold">
-        <v-icon class="mr-2" color="primary">mdi-function-variant</v-icon>
-        How the pollution score is calculated
-      </v-card-title>
-      <v-divider />
-      <v-card-text>
-        <v-row>
-          <v-col cols="12" md="4">
-            <div class="text-caption text-medium-emphasis">Conductivity, as a fraction of its limit</div>
-            <div class="font-weight-medium">c = conductivity / limit</div>
-            <div class="text-body-2 text-medium-emphasis">
-              = {{ fmt(data.conductivity) }} / {{ thresholds.conductivity }} =
-              <strong class="text-high-emphasis">{{ fmt(scoreC) }}</strong>
-            </div>
-          </v-col>
-          <v-col cols="12" md="4">
-            <div class="text-caption text-medium-emphasis">Clarity index, as a fraction of its limit</div>
-            <div class="font-weight-medium">k = clarity index / limit</div>
-            <div class="text-body-2 text-medium-emphasis">
-              = {{ fmt(data.clarity) }} / {{ thresholds.clarity }} =
-              <strong class="text-high-emphasis">{{ fmt(scoreK) }}</strong>
-            </div>
-          </v-col>
-          <v-col cols="12" md="4">
-            <div class="text-caption text-medium-emphasis">Score: the worse signal plus half the other</div>
-            <div class="font-weight-medium">score = max(c, k) + 0.5 × min(c, k)</div>
-            <div class="text-body-2 text-medium-emphasis">
-              = {{ fmt(Math.max(scoreC, scoreK)) }} + 0.5 × {{ fmt(Math.min(scoreC, scoreK)) }} =
-              <strong class="text-high-emphasis">{{ data.pollution_value ?? '—' }}</strong>
-            </div>
-          </v-col>
-        </v-row>
-        <v-divider class="my-3" />
-        <div class="text-body-2 text-medium-emphasis">
-          A signal of 1.0 is exactly at its limit. The score is
-          <span style="color: #66BB6A;">LOW</span> below 0.5,
-          <span style="color: #FFA726;">MEDIUM</span> from 0.5 to 1.0 and
-          <span style="color: #EF5350;">HIGH</span> from 1.0, and the diverter activates when it is HIGH.
-          The score keeps rising past 1.0 the further the water is beyond its limits.
-        </div>
-      </v-card-text>
-    </v-card>
+## How it works
 
-    <!-- last updated timestamp -->
-    <div class="text-medium-emphasis text-caption text-right">
-      Last updated: {{ lastUpdated }}
-    </div>
+### Sensors
 
-  </v-container>
-</template>
+- **Conductivity (primary signal).** The probe output is read by an ADS1115 on I2C bus 1 (address 0x48, ADDR tied to GND). The reading is a trimmed mean of 20 samples, converted to mg/L. Each probe needs its own calibration: add voltage and concentration pairs to `CALIBRATION_POINTS` in `backend/conductivity.py`. With fewer than two points a generic TDS curve is used.
+- **Water clarity (secondary signal).** The camera frame is converted to greyscale and its mean brightness is mapped to a clarity index between 0 and 2. A value of 0 is clear, and 1 is the boundary for high turbidity. The index measures darkness, so it is sensitive to lighting changes. A debris count is also shown, using adaptive thresholding and contour detection. It is a rough indicator only and does not affect the diverter.
+- **Fallback.** If the conductivity sensor or the camera is not available (for example when running on a laptop), simulated values are used. The dashboard shows a LIVE or SIMULATED badge on each reading so the source is always clear.
 
-<script>
-import axios from 'axios'
+### Pollution score and diverter
 
-// use relative paths so this works whether served from localhost or the pi's ip
-const API_BASE = ''
+Each signal is scaled so that 1.0 means "at its own threshold":
 
-export default {
-  name: 'Dashboard',
+```
+c = conductivity / conductivity_threshold
+k = clarity_index / clarity_threshold
+score = max(c, k) + 0.5 * min(c, k)
+```
 
-  data() {
-    return {
-      thresholds: { clarity: 1, conductivity: 800 },
-      data: {},
-      lastUpdated: '—',
-      ws: null,
-      thresholdInterval: null,
-    }
-  },
+The score is LOW below 0.5, MEDIUM below 1.0, and HIGH from 1.0. The diverter is active whenever the score is HIGH. Either signal alone at its threshold gives HIGH, and two moderately elevated signals can combine to reach HIGH. The weighting is a first design and has not yet been tuned against real events.
 
-  computed: {
-    conductivityPercent() {
-      return Math.min((this.data.conductivity / 2000) * 100, 100)
-    },
+### Event log
 
-    // the clarity bar fills as the water approaches the "high turbidity" boundary
-    clarityPercent() {
-      if (this.data.clarity == null) return 0
-      return Math.min((this.data.clarity / this.thresholds.clarity) * 100, 100)
-    },
+The event log records diverter state changes only. `DIVERTER_ACTIVATED` entries state the cause, including the reading source, and `DIVERTER_CLEARED` entries state how long the diverter was active. A cause that appears after the diverter is already active is not logged separately.
 
-    // bar spans 0 to 2, so the 1.0 trigger sits at the midpoint
-    scoreMarkerPercent() {
-      if (this.data.pollution_value == null) return 0
-      return Math.min(this.data.pollution_value / 2, 1) * 100
-    },
+### Settings
 
-    // the two normalised inputs to the score (1.0 = at its own limit)
-    scoreC() {
-      return (this.data.conductivity ?? 0) / this.thresholds.conductivity
-    },
+- Conductivity threshold (mg/L).
+- Camera thresholds: clear brightness, high turbidity brightness and debris minimum area, with a live brightness readout to set them against the real scene.
 
-    scoreK() {
-      return (this.data.clarity ?? 0) / this.thresholds.clarity
-    },
+Thresholds are held in memory and reset when the backend restarts.
 
-    conductivityColor() {
-      if (!this.data.conductivity) return 'grey'
-      if (this.data.conductivity > this.thresholds.conductivity) return '#EF5350'
-      if (this.data.conductivity > this.thresholds.conductivity * 0.7) return '#FFA726'
-      return '#66BB6A'
-    },
+## Getting started
 
-    clarityColor() {
-      const map = { clear: '#66BB6A', moderate: '#FFA726', high: '#EF5350' }
-      return map[this.data.turbidity_class] ?? 'grey'
-    },
+### Prerequisites
 
-    scoreColor() {
-      const map = { low: 'success', medium: 'warning', high: 'error' }
-      return map[this.data.pollution_score] ?? 'grey'
-    }
-  },
+- Python 3.10+
+- Node.js 18+
 
-  mounted() {
-    this.fetchThresholds()
-    this.fetchInitialStatus()
-    this.connectWebSocket()
-    this.thresholdInterval = setInterval(this.fetchThresholds, 5000)
-  },
+### Backend
 
-  beforeUnmount() {
-    if (this.ws) this.ws.close()
-    clearInterval(this.thresholdInterval)
-  },
+```bash
+python -m venv venv
+venv\Scripts\activate        # Windows
+source venv/bin/activate     # Linux / Pi
+pip install -r backend/requirements.txt
+make backend
+```
 
-  methods: {
-    fmt(v) {
-      return v == null ? '—' : Number(v).toFixed(2)
-    },
+On a laptop the camera and conductivity sensor are not found and simulated data is used.
 
-    async fetchThresholds() {
-      try {
-        const res = await axios.get(`${API_BASE}/api/thresholds`)
-        this.thresholds = res.data
-      } catch (e) {
-        console.error('failed to fetch thresholds', e)
-      }
-    },
+### Frontend
 
-    async fetchInitialStatus() {
-      try {
-        const res = await fetch(`${API_BASE}/api/status`)
-        this.data = await res.json()
-        this.updateTimestamp()
-      } catch (e) {
-        console.error('failed to fetch initial status', e)
-      }
-    },
+```bash
+cd frontend && npm install
+make frontend
+```
 
-    connectWebSocket() {
-      // build ws url relative to whatever host is serving the page
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsUrl = `${protocol}//${window.location.host}/ws/live`
-      this.ws = new WebSocket(wsUrl)
+Open `http://localhost:5173` in your browser. The Vite dev server proxies `/api` and `/ws` to the backend, so the same relative URLs work in development and on the Pi.
 
-      this.ws.onmessage = (event) => {
-        this.data = JSON.parse(event.data)
-        this.updateTimestamp()
-      }
+## Raspberry Pi
 
-      this.ws.onclose = () => {
-        setTimeout(() => this.connectWebSocket(), 3000)
-      }
-    },
+1. Enable I2C (`sudo raspi-config`, Interface Options) and connect the ADS1115 to I2C bus 1 (pins 3 and 5). `i2cdetect -y 1` should show `48`.
+2. Install dependencies from `requirements-pi.txt`. This includes `smbus2` and `opencv-python-headless`, because the Lite OS has no libGL.
+3. Copy the backend with `deploy.bat`, then run `make run-pi` on the Pi.
 
-    updateTimestamp() {
-      this.lastUpdated = new Date().toLocaleTimeString()
-    }
-  }
-}
-</script>
+## API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/status` | Latest snapshot from the sensor loop |
+| GET | `/api/readings` | Historical readings from SQLite |
+| GET | `/api/events` | Diverter event log |
+| GET / POST | `/api/thresholds` | Read or set the conductivity threshold (`?conductivity=`) |
+| POST | `/api/thresholds/reset` | Reset the conductivity threshold |
+| GET | `/api/camera/analysis` | Latest camera analysis |
+| GET | `/api/camera/stream` | MJPEG live feed |
+| GET / POST | `/api/camera/thresholds` | Read or set the camera thresholds |
+| POST | `/api/camera/thresholds/reset` | Reset the camera thresholds |
+| DELETE | `/api/clear` | Clear readings and events |
+| WS | `/ws/live` | Live sensor stream at 2 s intervals |
+
+## Production
+
+Build the frontend and serve static files via FastAPI:
+
+```bash
+cd frontend && npm run build
+# copy dist/ to backend/static/
+make backend
+```
+
+Then open `http://<device-ip>:8000` from any device on the same network.
+
+## Known limitations
+
+- Conductivity calibration is pending, so readings are indicative until `CALIBRATION_POINTS` is filled in.
+- The clarity index depends on lighting and is not a turbidity measurement.
+- Debris detection is not validated.
+- Thresholds are not persisted across restarts.
